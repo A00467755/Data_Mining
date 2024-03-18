@@ -1,0 +1,385 @@
+> library(tidyverse)
+── Attaching core tidyverse packages ───────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ ggplot2   3.4.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
+✔ purrr     1.0.1     
+── Conflicts ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+✖ tidyr::expand() masks Matrix::expand()
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+✖ tidyr::pack()   masks Matrix::pack()
+✖ dplyr::recode() masks arules::recode()
+✖ tidyr::unpack() masks Matrix::unpack()
+ℹ Use the conflicted package to force all conflicts to become errors
+Warning messages:
+1: 套件 ‘tidyverse’ 是用 R 版本 4.2.3 來建造的 
+2: 套件 ‘ggplot2’ 是用 R 版本 4.2.3 來建造的 
+3: 套件 ‘tibble’ 是用 R 版本 4.2.3 來建造的 
+4: 套件 ‘dplyr’ 是用 R 版本 4.2.3 來建造的 
+5: 套件 ‘forcats’ 是用 R 版本 4.2.3 來建造的 
+> library(caret)
+載入需要的套件：lattice
+
+載入套件：‘caret’
+
+下列物件被遮斷自 ‘package:purrr’:
+
+    lift
+
+> 
+> setwd("D:/#Spring 2023/5580 - Text Mining/Assignment5")
+> 
+> # setup functions
+> mape <- function(actual,pred) {
++   mape <- mean(abs((actual-pred)/actual))*100
++   return (mape)
++ }
+> 
+> # Read the data file which has info about top 6 products from sales219
+> data <- read.csv('data.csv')
+> 
+> # Get top 6 product ids in list
+> top_products <- data %>% 
++   group_by(item_sk) %>% 
++   summarize(total_quantity = sum(quantity)) %>% 
++   select(item_sk, total_quantity) %>% 
++   arrange(desc(total_quantity))
+> 
+> #---------------------------------------------------------------------------
+> # selected product = Top 
+> #11740941
+> #11741274
+> #11629829
+> product <- top_products$item_sk[1]
+> product
+[1] 11740941
+> 
+> # Filter the data for selected product only
+> xy <- data %>% 
++   filter(item_sk == product, quantity != 3) %>% 
++   select(-item_sk)
+> 
+> # Check for any missing dates in the data
+> 
+> is_continuous <- all(diff(xy$Date) == 1)
+> 
+> # Remove the data as well
+> xy$date <- NULL
+> 
+> # Reshape the dataframe to have 7 independent and 1 dependent (8 in total cols)
+> 
+> total_rows = nrow(xy)
+> rows_to_reshape = total_rows - (total_rows %% 8)
+> reshaped_xy <- 
++   as.data.frame(matrix(xy[1:rows_to_reshape, 1], ncol = 8, byrow = TRUE))
+> 
+> 
+> trainIndex<-createDataPartition(reshaped_xy$V8, p=0.8, list=FALSE)
+> train<-reshaped_xy[trainIndex,]
+> test<-reshaped_xy[-trainIndex,]
+> 
+> 
+> # Set X and y
+> X <- train[,1:7]
+> y <- train[,8]
+> 
+> X_test <- test[,1:7]
+> y_test <- test[,8]
+> 
+> myCvControl <- trainControl(method = "repeatedCV",
++                             number=10,
++                             repeats = 5)
+Warning message:
+`repeats` has no meaning for this resampling method. 
+> 
+> ###########################
+> 
+> # Linear Regression
+> # Using pre-sliced data
+> # Linear regression
+> glmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "glm",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl)
+> glmFitTime
+Generalized Linear Model 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 25, 24, 24, 25, 24, 24, ... 
+Resampling results:
+
+  RMSE      Rsquared   MAE     
+  89.54255  0.6277155  75.43229
+
+> summary(glmFitTime)
+
+Call:
+NULL
+
+Deviance Residuals: 
+     Min        1Q    Median        3Q       Max  
+-164.620   -42.292    -0.005    45.095   131.736  
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept)  351.667     15.027  23.402  1.8e-15 ***
+V1             3.385     19.099   0.177    0.861    
+V2             3.888     17.015   0.228    0.822    
+V3            14.645     16.626   0.881    0.389    
+V4            -5.533     17.299  -0.320    0.753    
+V5           -10.380     17.526  -0.592    0.561    
+V6            10.828     17.289   0.626    0.539    
+V7            27.416     19.023   1.441    0.166    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for gaussian family taken to be 6097.067)
+
+    Null deviance: 160218  on 26  degrees of freedom
+Residual deviance: 115844  on 19  degrees of freedom
+AIC: 320.46
+
+Number of Fisher Scoring iterations: 2
+
+> 
+> # MAPE Training
+> y_hat = predict(glmFitTime, newdata = X)
+> mape(y,y_hat)
+[1] 16.91274
+> # MAPE Testing
+> y_hat2 = predict(glmFitTime, newdata = X_test)
+> mape(y_test,y_hat2)
+[1] 23.78233
+> #---------------------------------------------------------------------------
+> # selected product = Top 3th
+> #11740941
+> #11741274
+> #11629829
+> product <- top_products$item_sk[3]
+> product
+[1] 11741274
+> 
+> # Filter the data for selected product only
+> xy <- data %>% 
++   filter(item_sk == product, quantity != 1) %>% 
++   select(-item_sk)
+> 
+> # Check for any missing dates in the data
+> 
+> is_continuous <- all(diff(xy$Date) == 1)
+> 
+> # Remove the data as well
+> xy$date <- NULL
+> 
+> # Reshape the dataframe to have 7 independent and 1 dependent (8 in total cols)
+> 
+> total_rows = nrow(xy)
+> rows_to_reshape = total_rows - (total_rows %% 8)
+> reshaped_xy <- 
++   as.data.frame(matrix(xy[1:rows_to_reshape, 1], ncol = 8, byrow = TRUE))
+> 
+> 
+> trainIndex<-createDataPartition(reshaped_xy$V8, p=0.8, list=FALSE)
+> train<-reshaped_xy[trainIndex,]
+> test<-reshaped_xy[-trainIndex,]
+> 
+> 
+> # Set X and y
+> X <- train[,1:7]
+> y <- train[,8]
+> 
+> X_test <- test[,1:7]
+> y_test <- test[,8]
+> 
+> myCvControl <- trainControl(method = "repeatedCV",
++                             number=10,
++                             repeats = 5)
+Warning message:
+`repeats` has no meaning for this resampling method. 
+> 
+> ###########################
+> 
+> # Linear Regression
+> # Using pre-sliced data
+> # Linear regression
+> glmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "glm",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl)
+> glmFitTime
+Generalized Linear Model 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 25, 24, 25, 24, 25, ... 
+Resampling results:
+
+  RMSE   Rsquared   MAE     
+  40.96  0.6168023  35.84035
+
+> summary(glmFitTime)
+
+Call:
+NULL
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-49.443  -19.106   -9.702   15.997   75.577  
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept)  109.704      6.642  16.518 9.99e-13 ***
+V1             7.858      7.633   1.029    0.316    
+V2             5.752      8.669   0.663    0.515    
+V3            -4.781      8.060  -0.593    0.560    
+V4           -14.374     10.381  -1.385    0.182    
+V5            -4.475      7.778  -0.575    0.572    
+V6             7.554      9.430   0.801    0.433    
+V7            26.064      9.741   2.676    0.015 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for gaussian family taken to be 1191.014)
+
+    Null deviance: 38446  on 26  degrees of freedom
+Residual deviance: 22629  on 19  degrees of freedom
+AIC: 276.36
+
+Number of Fisher Scoring iterations: 2
+
+> 
+> # MAPE Training
+> y_hat = predict(glmFitTime, newdata = X)
+> mape(y,y_hat)
+[1] 23.42895
+> # MAPE Testing
+> y_hat2 = predict(glmFitTime, newdata = X_test)
+> mape(y_test,y_hat2)
+[1] 28.5318
+> #---------------------------------------------------------------------------
+> # selected product = Top 5th
+> #11740941
+> #11741274
+> #11629829
+> product <- top_products$item_sk[5]
+> product
+[1] 11629829
+> 
+> # Filter the data for selected product only
+> xy <- data %>% 
++   filter(item_sk == product, quantity != 603) %>% 
++   select(-item_sk)
+> 
+> # Check for any missing dates in the data
+> 
+> is_continuous <- all(diff(xy$Date) == 1)
+> 
+> # Remove the data as well
+> xy$date <- NULL
+> 
+> # Reshape the dataframe to have 7 independent and 1 dependent (8 in total cols)
+> 
+> total_rows = nrow(xy)
+> rows_to_reshape = total_rows - (total_rows %% 8)
+> reshaped_xy <- 
++   as.data.frame(matrix(xy[1:rows_to_reshape, 1], ncol = 8, byrow = TRUE))
+> 
+> 
+> trainIndex<-createDataPartition(reshaped_xy$V8, p=0.8, list=FALSE)
+> train<-reshaped_xy[trainIndex,]
+> test<-reshaped_xy[-trainIndex,]
+> 
+> 
+> # Set X and y
+> X <- train[,1:7]
+> y <- train[,8]
+> 
+> X_test <- test[,1:7]
+> y_test <- test[,8]
+> 
+> myCvControl <- trainControl(method = "repeatedCV",
++                             number=10,
++                             repeats = 5)
+Warning message:
+`repeats` has no meaning for this resampling method. 
+> 
+> ###########################
+> 
+> # Linear Regression
+> # Using pre-sliced data
+> # Linear regression
+> glmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "glm",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl)
+Warning message:
+In nominalTrainWorkflow(x = x, y = y, wts = weights, info = trainInfo,  :
+  There were missing values in resampled performance measures.
+> glmFitTime
+Generalized Linear Model 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 24, 24, 24, 25, 25, ... 
+Resampling results:
+
+  RMSE      Rsquared   MAE    
+  58.20867  0.6945739  46.5621
+
+> summary(glmFitTime)
+
+Call:
+NULL
+
+Deviance Residuals: 
+    Min       1Q   Median       3Q      Max  
+-58.661  -22.065  -13.948    3.842  189.033  
+
+Coefficients:
+            Estimate Std. Error t value Pr(>|t|)    
+(Intercept)   78.074     11.435   6.828 1.62e-06 ***
+V1            -1.602     21.331  -0.075    0.941    
+V2            26.200     20.896   1.254    0.225    
+V3           -20.331     22.031  -0.923    0.368    
+V4            -7.051     29.779  -0.237    0.815    
+V5            -3.294     27.560  -0.120    0.906    
+V6            24.181     19.625   1.232    0.233    
+V7            12.770     22.087   0.578    0.570    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for gaussian family taken to be 3530.286)
+
+    Null deviance: 101130  on 26  degrees of freedom
+Residual deviance:  67075  on 19  degrees of freedom
+AIC: 305.7
+
+Number of Fisher Scoring iterations: 2
+
+> 
+> # MAPE Training
+> y_hat = predict(glmFitTime, newdata = X)
+> mape(y,y_hat)
+[1] 44.80197
+> # MAPE Testing
+> y_hat2 = predict(glmFitTime, newdata = X_test)
+> mape(y_test,y_hat2)
+[1] 172.9048

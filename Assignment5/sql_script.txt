@@ -1,0 +1,16 @@
+select item_sk,sum(item_qty) from sales219
+group by item_sk
+order by sum(item_qty) desc
+limit 6;
+
+CREATE TABLE trishla.daily11740941 AS
+SELECT date,item_sk,sum(item_qty) as quant from dataset01.sales219
+where item_sk = '11740941'
+group by date,item_sk
+ORDER by item_sk,date;
+
+
+
+
+
+

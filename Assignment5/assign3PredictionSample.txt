@@ -1,0 +1,242 @@
+Sample time series (your values will be much smaller):
+1255
+1456
+1256
+1311
+1578
+1339
+1305
+1494
+1465
+1650
+1362
+1261
+1159
+1364
+...
+...
+Corresponding data file:
+1255.00,1456.00,1256.00,1311.00,1578.00,1339.00,1305.00,1494.00
+1456.00,1256.00,1311.00,1578.00,1339.00,1305.00,1494.00,1465.00
+1256.00,1311.00,1578.00,1339.00,1305.00,1494.00,1465.00,1650.00
+1311.00,1578.00,1339.00,1305.00,1494.00,1465.00,1650.00,1362.00
+1578.00,1339.00,1305.00,1494.00,1465.00,1650.00,1362.00,1261.00
+1339.00,1305.00,1494.00,1465.00,1650.00,1362.00,1261.00,1159.00
+1305.00,1494.00,1465.00,1650.00,1362.00,1261.00,1159.00,1364.00
+...
+...
+</pre>
+<li>Run multilayer perceptron, linear regression, support vector machine, Holt-Winters,
+and ARIMA(p,0,q) on
+the dataset file for the entire dataset.</li>
+<li>Split the dataset into train and test datasets to see if
+the results are comparable.</li>
+</ul>
+</li>
+<li>Try to see if weekly time series for one
+of the products will give you better results.</li>
+<li>Your report should compare error statistics for
+all the runs.</li>
+</ul>
+<p>
+Some useful notes
+</p>
+<pre>
+select item_sk,sum(selling_retail_amt) as revenue from sales219 group by item_sk order by revenue desc limit 0,10;
++----------+--------------+
+| item_sk  | revenue      |
++----------+--------------+
+| 11740941 | 126515.96952 |
+| 11740923 |  78940.47849 |
+| 11680016 |  72298.68816 |
+| 11610106 |  59209.60202 |
+| 11686823 |  55806.38884 |
+| 11741143 |  44282.30567 |
+| 11685694 |  43996.07196 |
+| 11740964 |  40649.78793 |
+| 12518517 |  39994.93839 |
+| 11696675 |  39570.41129 |
++----------+--------------+
+
+Find out if they are sold by weight or quantity
+
+mysql> select item_sk, item_qty, item_weight from sales219
+where item_sk='11741143' limit 0,10;
++----------+----------+-------------+
+| item_sk  | item_qty | item_weight |
++----------+----------+-------------+
+| 11741143 |        2 |       2.265 |
+| 11741143 |        1 |       1.205 |
+| 11741143 |        1 |       0.880 |
+| 11741143 |        1 |       0.875 |
+| 11741143 |        1 |       0.840 |
+| 11741143 |        1 |       0.580 |
+| 11741143 |        1 |       0.920 |
+| 11741143 |        1 |       0.975 |
+| 11741143 |        1 |       1.105 |
+| 11741143 |        1 |       0.765 |
++----------+----------+-------------+
+10 rows in set (0.01 sec)
+
+mysql> select item_sk, item_qty, item_weight from sales219
+where item_sk='11686823' limit 0,10;
++----------+----------+-------------+
+| item_sk  | item_qty | item_weight |
++----------+----------+-------------+
+| 11686823 |        1 |       0.000 |
+| 11686823 |        1 |       0.000 |
+| 11686823 |        1 |       0.000 |
+| 11686823 |        2 |       0.000 |
+| 11686823 |        1 |       0.000 |
+| 11686823 |        1 |       0.000 |
+| 11686823 |        1 |       0.000 |
+| 11686823 |        1 |       0.000 |
+| 11686823 |        1 |       0.000 |
+| 11686823 |        1 |       0.000 |
++----------+----------+-------------+
+10 rows in set (0.01 sec)
+
+mysql> select item_sk, item_qty, item_weight from sales219
+where item_sk='12518517' limit 0,10;
++----------+----------+-------------+
+| item_sk  | item_qty | item_weight |
++----------+----------+-------------+
+| 12518517 |        1 |       0.000 |
+| 12518517 |        8 |       0.000 |
+| 12518517 |        1 |       0.000 |
+| 12518517 |        1 |       0.000 |
+| 12518517 |        1 |       0.000 |
+| 12518517 |        3 |       0.000 |
+| 12518517 |        1 |       0.000 |
+| 12518517 |        1 |       0.000 |
+| 12518517 |        1 |       0.000 |
+| 12518517 |        1 |       0.000 |
++----------+----------+-------------+
+10 rows in set (0.01 sec)
+
+create table pawan.daily12518517 as
+select date, item_sk, sum(item_qty) as quant
+from sales219 where item_sk='12518517'
+group by date order by date;
+
+Check to make sure the table looks OK
+
+select * from pawan.daily12518517 limit 0,10;
+
+From UNIX command line
+echo "select quant from pawan.daily12518517" | mysql -u pawan -p > timeSeries.txt
+more timeSeries.txt
+
+#delete the first line with the word quant
+#Create a Java program called HistoryTimeSeries.java using
+#Detailed code segments discussed in class
+
+java HistoryTimeSeries < timeSeries.txt > historicalTimeSeries.txt
+head timeSeries.txt 
+27
+34
+6
+36
+45
+36
+24
+32
+20
+10
+head historicalTimeSeries.txt 
+27.0 34.0 6.0 36.0 45.0 36.0 24.0 32.0 
+34.0 6.0 36.0 45.0 36.0 24.0 32.0 20.0 
+6.0 36.0 45.0 36.0 24.0 32.0 20.0 10.0 
+36.0 45.0 36.0 24.0 32.0 20.0 10.0 30.0 
+45.0 36.0 24.0 32.0 20.0 10.0 30.0 23.0 
+36.0 24.0 32.0 20.0 10.0 30.0 23.0 43.0 
+24.0 32.0 20.0 10.0 30.0 23.0 43.0 32.0 
+32.0 20.0 10.0 30.0 23.0 43.0 32.0 21.0 
+20.0 10.0 30.0 23.0 43.0 32.0 21.0 19.0 
+10.0 30.0 23.0 43.0 32.0 21.0 19.0 15.0 
+
+Now Ready to do R
+
+# If you are on linux you can uncomment the following lines to run caret on multiple cores
+# library(doMC)
+# registerDoMC(4)
+library(caret)
+
+xy=read.table("historicalTimeSeries.txt",sep=' ',header=F)
+y=xy[,8]
+head(y)
+x=xy[,1:7]
+
+# Using pre-sliced data
+myCvControl <- trainControl(method = "repeatedCV",
+                            number=10,
+                            repeats = 5)
+
+# Linear regression
+glmFitTime <- train(V8 ~ .,
+                    data = xy,
+                    method = "glm",
+                    preProc = c("center", "scale"),
+                    tuneLength = 10,
+                    trControl = myCvControl)
+glmFitTime
+summary(glmFitTime)
+y_hat = predict(glmFitTime, newdata = x)
+mean(100*abs(y_hat-y)/y)
+# Your error with linear regression
+
+# Support Vector Regression
+svmFitTime <- train(V8 ~ .,
+                    data = xy,
+                    method = "svmRadial",
+                    preProc = c("center", "scale"),
+                    tuneLength = 10,
+                    trControl = myCvControl)
+svmFitTime
+summary(svmFitTime)
+y_hat = predict(svmFitTime, newdata = x)
+mean(100*abs(y_hat-y)/y)
+# Your error with support vector regression
+
+# Neural Network
+nnFitTime <- train(V8 ~ .,
+                   data = xy,
+                   method = "avNNet",
+                   preProc = c("center", "scale"),
+                   trControl = myCvControl,
+                   tuneLength = 10,
+                   linout = T,
+                   trace = F,
+                   MaxNWts = 10 * (ncol(xy) + 1) + 10 + 1,
+                   maxit = 500)
+nnFitTime
+summary(nnFitTime)
+y_hat = predict(nnFitTime, newdata = x)
+mean(100*abs(y_hat-y)/y)
+# Your error with neural networks
+
+# You can experiment with other methods, here is where you can find the methods caret supports:
+# https://topepo.github.io/caret/available-models.html
+
+# Compare models
+resamps <- resamples(list(lm = glmFitTime,
+                          svn = svmFitTime,
+                          nn = nnFitTime))
+summary(resamps)
+
+
+# Now working with the time-series modeling
+
+t=read.table("timeSeries.txt",header=F)
+head(t)
+tSeries = ts(t,start=1,freq=7)
+head(tSeries)
+
+library(forecast)
+hw = ets(tSeries,model="MAM")
+mean(100*abs(fitted(hw) - tSeries)/tSeries)
+# Your Holt-Winters error
+
+ar <- Arima(tSeries,order=c(7,0,7))
+mean(100*abs(fitted(ar) - tSeries)/tSeries)
+# Your Arima error

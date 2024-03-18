@@ -1,0 +1,1054 @@
+> library(tidyverse)
+── Attaching core tidyverse packages ────────────────────────────────────────────────────────────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.1     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ ggplot2   3.4.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
+✔ purrr     1.0.1     
+── Conflicts ──────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package to force all conflicts to become errors
+There were 11 warnings (use warnings() to see them)
+> library(caret)
+Loading required package: lattice
+
+Attaching package: ‘caret’
+
+The following object is masked from ‘package:purrr’:
+
+    lift
+
+Warning message:
+package ‘caret’ was built under R version 4.2.3 
+> 
+> setwd("C:/")
+> 
+> set.seed(1)
+> 
+> # Read the data file which has info about top 6 products from sales219
+> data <- read.csv('data.csv')
+> 
+> # Get top 6 product ids in list
+> top_products <- data %>% 
++   group_by(item_sk) %>% 
++   summarize(total_quantity = sum(quantity)) %>% 
++   select(item_sk, total_quantity) %>% 
++   arrange(desc(total_quantity))
+> 
+> # Get the first product and analyze
+> 
+> 
+> #------------------------------------------------------------------
+> # selected product = 1st Top
+> #11740941
+> #11741274
+> #11629829
+> 
+> product <- top_products$item_sk[1]
+> product
+[1] 11740941
+> 
+> # Filter the data for selected product only
+> xy <- data %>% 
++   filter(item_sk == product, quantity != 3) %>%  # filter product & outliner
++   select(-item_sk)
+> 
+> # Check for any missing dates in the data
+> 
+> is_continuous <- all(diff(xy$Date) == 1)
+> 
+> # Remove the data as well
+> xy$date <- NULL
+> 
+> # Reshape the dataframe to have 7 independent and 1 dependent (8 in total cols)
+> 
+> total_rows = nrow(xy)
+> rows_to_reshape = total_rows - (total_rows %% 8)
+> reshaped_xy <- 
++   as.data.frame(matrix(xy[1:rows_to_reshape, 1], ncol = 8, byrow = TRUE))
+> 
+> 
+> trainIndex<-createDataPartition(reshaped_xy$V8, p=0.8, list=FALSE)
+> train<-reshaped_xy[trainIndex,]
+> test<-reshaped_xy[-trainIndex,]
+> 
+> 
+> # Set X and y
+> X <- train[,1:7]
+> y <- train[,8]
+> 
+> X_test <- test[,1:7]
+> y_test <- test[,8]
+> 
+> myCvControl <- trainControl(method = "repeatedCV",
++                             number=10,
++                             repeats = 5)
+Warning message:
+`repeats` has no meaning for this resampling method. 
+> 
+> ###########################
+> 
+> # Neural Network
+> # Averaged Neural Network
+> 
+> nnFitTime <- train(V8 ~ .,
++                    data = train,
++                    method = "avNNet",
++                    preProc = c("center", "scale"),
++                    trControl = myCvControl,
++                    tuneLength = 10,
++                    linout = T,
++                    trace = F,
++                    MaxNWts = 10 * (ncol(train) + 1) + 10 + 1,
++                    maxit = 500)
+There were 50 or more warnings (use warnings() to see the first 50)
+> nnFitTime
+Model Averaged Neural Network 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 25, 24, 24, 24, 24, 24, ... 
+Resampling results across tuning parameters:
+
+  size  decay         RMSE       Rsquared   MAE     
+   1    0.0000000000   73.81646  0.6425546  63.23982
+   1    0.0001000000   72.35148  0.6776416  63.12047
+   1    0.0002371374   76.26898  0.6428117  66.57022
+   1    0.0005623413   75.37629  0.6559568  67.32962
+   1    0.0013335214   71.39541  0.6781297  62.39034
+   1    0.0031622777   71.68818  0.6572992  60.97326
+   1    0.0074989421   79.01202  0.5787829  68.73101
+   1    0.0177827941   76.36537  0.6400228  67.83494
+   1    0.0421696503   72.95063  0.6410414  62.68034
+   1    0.1000000000   71.40167  0.6083348  61.63081
+   3    0.0000000000   70.91415  0.6593004  61.36785
+   3    0.0001000000   82.78869  0.6137909  74.16951
+   3    0.0002371374   77.96094  0.6740758  67.60149
+   3    0.0005623413   84.61787  0.6602782  72.97623
+   3    0.0013335214   82.81190  0.6440119  72.34258
+   3    0.0031622777   89.87420  0.6425455  78.69513
+   3    0.0074989421   80.97934  0.6546144  72.39401
+   3    0.0177827941   85.20894  0.5876188  75.77305
+   3    0.0421696503   82.52115  0.6743060  73.60060
+   3    0.1000000000   81.58470  0.6336773  71.92345
+   5    0.0000000000   83.72422  0.6248639  72.34331
+   5    0.0001000000   77.87965  0.6513368  68.60156
+   5    0.0002371374   87.35085  0.7096193  77.23594
+   5    0.0005623413   88.70770  0.6461117  77.50187
+   5    0.0013335214   85.23064  0.5892059  74.05711
+   5    0.0031622777   87.25235  0.6664709  74.03603
+   5    0.0074989421   85.34639  0.6528825  74.99504
+   5    0.0177827941   88.18756  0.5781214  78.01437
+   5    0.0421696503   86.70251  0.6263324  75.51556
+   5    0.1000000000   81.96802  0.6421902  72.22157
+   7    0.0000000000   85.01936  0.6999894  71.55054
+   7    0.0001000000   90.69036  0.5883835  77.96577
+   7    0.0002371374   97.12800  0.6433637  82.99555
+   7    0.0005623413   91.08931  0.6645610  80.31443
+   7    0.0013335214   86.67613  0.6744565  74.10097
+   7    0.0031622777   87.30678  0.6761869  76.32223
+   7    0.0074989421   87.23431  0.6701230  76.06370
+   7    0.0177827941   83.68645  0.6578420  73.50024
+   7    0.0421696503   84.99657  0.6397780  74.58854
+   7    0.1000000000   82.19508  0.6095834  72.51558
+   9    0.0000000000   90.83118  0.7373713  77.78090
+   9    0.0001000000   96.78027  0.6449291  79.89440
+   9    0.0002371374   96.50194  0.6975770  84.31741
+   9    0.0005623413   95.58610  0.6923918  82.04060
+   9    0.0013335214   95.48574  0.6419327  80.93836
+   9    0.0031622777   88.96252  0.6884101  77.94582
+   9    0.0074989421   85.86514  0.7536922  74.27348
+   9    0.0177827941   86.16513  0.6576006  76.05966
+   9    0.0421696503   81.81803  0.6845908  71.99787
+   9    0.1000000000   81.26230  0.6907636  72.67937
+  11    0.0000000000   96.26782  0.7103792  82.71703
+  11    0.0001000000   99.65998  0.7408053  86.26217
+  11    0.0002371374  102.13542  0.6882234  86.99820
+  11    0.0005623413   94.51732  0.7007739  81.20582
+  11    0.0013335214   91.24745  0.6687824  78.88016
+  11    0.0031622777   92.89345  0.6319149  80.74764
+  11    0.0074989421   83.84136  0.6464303  73.19619
+  11    0.0177827941   84.63177  0.6472926  73.42759
+  11    0.0421696503   81.44392  0.6521811  71.93505
+  11    0.1000000000   80.94755  0.5771502  71.91276
+  13    0.0000000000        NaN        NaN       NaN
+  13    0.0001000000        NaN        NaN       NaN
+  13    0.0002371374        NaN        NaN       NaN
+  13    0.0005623413        NaN        NaN       NaN
+  13    0.0013335214        NaN        NaN       NaN
+  13    0.0031622777        NaN        NaN       NaN
+  13    0.0074989421        NaN        NaN       NaN
+  13    0.0177827941        NaN        NaN       NaN
+  13    0.0421696503        NaN        NaN       NaN
+  13    0.1000000000        NaN        NaN       NaN
+  15    0.0000000000        NaN        NaN       NaN
+  15    0.0001000000        NaN        NaN       NaN
+  15    0.0002371374        NaN        NaN       NaN
+  15    0.0005623413        NaN        NaN       NaN
+  15    0.0013335214        NaN        NaN       NaN
+  15    0.0031622777        NaN        NaN       NaN
+  15    0.0074989421        NaN        NaN       NaN
+  15    0.0177827941        NaN        NaN       NaN
+  15    0.0421696503        NaN        NaN       NaN
+  15    0.1000000000        NaN        NaN       NaN
+  17    0.0000000000        NaN        NaN       NaN
+  17    0.0001000000        NaN        NaN       NaN
+  17    0.0002371374        NaN        NaN       NaN
+  17    0.0005623413        NaN        NaN       NaN
+  17    0.0013335214        NaN        NaN       NaN
+  17    0.0031622777        NaN        NaN       NaN
+  17    0.0074989421        NaN        NaN       NaN
+  17    0.0177827941        NaN        NaN       NaN
+  17    0.0421696503        NaN        NaN       NaN
+  17    0.1000000000        NaN        NaN       NaN
+  19    0.0000000000        NaN        NaN       NaN
+  19    0.0001000000        NaN        NaN       NaN
+  19    0.0002371374        NaN        NaN       NaN
+  19    0.0005623413        NaN        NaN       NaN
+  19    0.0013335214        NaN        NaN       NaN
+  19    0.0031622777        NaN        NaN       NaN
+  19    0.0074989421        NaN        NaN       NaN
+  19    0.0177827941        NaN        NaN       NaN
+  19    0.0421696503        NaN        NaN       NaN
+  19    0.1000000000        NaN        NaN       NaN
+
+Tuning parameter 'bag' was held constant at a value of FALSE
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were size = 3, decay = 0 and bag = FALSE.
+> summary(nnFitTime)
+            Length Class      Mode     
+model       5      -none-     list     
+repeats     1      -none-     numeric  
+bag         1      -none-     logical  
+seeds       5      -none-     numeric  
+names       7      -none-     character
+terms       3      terms      call     
+coefnames   7      -none-     character
+xlevels     0      -none-     list     
+xNames      7      -none-     character
+problemType 1      -none-     character
+tuneValue   3      data.frame list     
+obsLevels   1      -none-     logical  
+param       4      -none-     list     
+> # MAPE Training
+> y_hat = predict(nnFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 13.89535
+> # MAPE Testing
+> y_hat2 = predict(nnFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 24.74469
+> 
+> 
+> # Neural Network 1 hidden layer (15)
+> grid <-  expand.grid(layer1 = 15,
++                      layer2 = 0,
++                      layer3 = 0)
+> 
+> nnFitTime <- train(V8 ~ .,
++                    data = train,
++                    method = "neuralnet", 
++                    algorithm="backprop",
++                    tuneGrid = grid,
++                    learningrate=0.01,
++                    preProc = c("center", "scale"),
++                    threshold = 0.05,
++                    trControl = myCvControl
++ )
+There were 25 warnings (use warnings() to see them)
+> 
+> nnFitTime
+Neural Network 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 24, 25, 24, 24, 25, ... 
+Resampling results:
+
+  RMSE      Rsquared   MAE    
+  127.2882  0.6897552  110.787
+
+Tuning parameter 'layer1' was held constant at a value of 15
+Tuning parameter 'layer2' was held constant at a value of 0
+
+Tuning parameter 'layer3' was held constant at a value of 0
+> summary(nnFitTime)
+                    Length Class      Mode     
+call                  7    -none-     call     
+response             27    -none-     numeric  
+covariate           189    -none-     numeric  
+model.list            2    -none-     list     
+err.fct               1    -none-     function 
+act.fct               1    -none-     function 
+linear.output         1    -none-     logical  
+data                  8    data.frame list     
+exclude               0    -none-     NULL     
+net.result            1    -none-     list     
+weights               1    -none-     list     
+generalized.weights   1    -none-     list     
+startweights          1    -none-     list     
+result.matrix       139    -none-     numeric  
+xNames                7    -none-     character
+problemType           1    -none-     character
+tuneValue             3    data.frame list     
+obsLevels             1    -none-     logical  
+param                 3    -none-     list     
+> # MAPE Training
+> y_hat = predict(nnFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 10.34542
+> # MAPE Testing
+> y_hat2 = predict(nnFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 27.75776
+> plot(nnFitTime$finalModel)
+> 
+> # Neural Network 3 hidden layer (5, 5, 5)
+> grid <-  expand.grid(layer1 = 5,
++                      layer2 = 5,
++                      layer3 = 5)
+> 
+> 
+> nnFitTime <- train(V8 ~ .,
++                    data = train,
++                    method = "neuralnet", 
++                    algorithm="backprop",
++                    learningrate=0.01,
++                    tuneGrid = grid,
++                    threshold = 0.05,
++                    preProc = c("center", "scale", "nzv"),
++                    trControl = myCvControl
++ )
+Warning message:
+In nominalTrainWorkflow(x = x, y = y, wts = weights, info = trainInfo,  :
+  There were missing values in resampled performance measures.
+> 
+> nnFitTime
+Neural Network 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 25, 24, 25, 24, 24, 24, ... 
+Resampling results:
+
+  RMSE      Rsquared   MAE     
+  69.71009  0.6906633  60.96389
+
+Tuning parameter 'layer1' was held constant at a value of 5
+Tuning parameter 'layer2' was held constant at a value of 5
+
+Tuning parameter 'layer3' was held constant at a value of 5
+> summary(nnFitTime)
+                    Length Class      Mode     
+call                  7    -none-     call     
+response             27    -none-     numeric  
+covariate           189    -none-     numeric  
+model.list            2    -none-     list     
+err.fct               1    -none-     function 
+act.fct               1    -none-     function 
+linear.output         1    -none-     logical  
+data                  8    data.frame list     
+exclude               0    -none-     NULL     
+net.result            1    -none-     list     
+weights               1    -none-     list     
+generalized.weights   1    -none-     list     
+startweights          1    -none-     list     
+result.matrix       109    -none-     numeric  
+xNames                7    -none-     character
+problemType           1    -none-     character
+tuneValue             3    data.frame list     
+obsLevels             1    -none-     logical  
+param                 3    -none-     list     
+> # MAPE Training
+> y_hat = predict(nnFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 19.90871
+> # MAPE Testing
+> y_hat2 = predict(nnFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 16.1554
+> plot(nnFitTime$finalModel)
+> #------------------------------------------------------------------
+> # selected product = 3rd Top
+> #11740941
+> #11741274
+> #11629829
+> 
+> product <- top_products$item_sk[3]
+> product
+[1] 11741274
+> 
+> # Filter the data for selected product only
+> xy <- data %>% 
++   filter(item_sk == product, quantity != 1) %>%  # filter product & outliner
++   select(-item_sk)
+> 
+> # Check for any missing dates in the data
+> 
+> is_continuous <- all(diff(xy$Date) == 1)
+> 
+> # Remove the data as well
+> xy$date <- NULL
+> 
+> # Reshape the dataframe to have 7 independent and 1 dependent (8 in total cols)
+> 
+> total_rows = nrow(xy)
+> rows_to_reshape = total_rows - (total_rows %% 8)
+> reshaped_xy <- 
++   as.data.frame(matrix(xy[1:rows_to_reshape, 1], ncol = 8, byrow = TRUE))
+> 
+> 
+> trainIndex<-createDataPartition(reshaped_xy$V8, p=0.8, list=FALSE)
+> train<-reshaped_xy[trainIndex,]
+> test<-reshaped_xy[-trainIndex,]
+> 
+> 
+> # Set X and y
+> X <- train[,1:7]
+> y <- train[,8]
+> 
+> X_test <- test[,1:7]
+> y_test <- test[,8]
+> 
+> myCvControl <- trainControl(method = "repeatedCV",
++                             number=10,
++                             repeats = 5)
+Warning message:
+`repeats` has no meaning for this resampling method. 
+> 
+> ###########################
+> 
+> # Neural Network
+> # Averaged Neural Network
+> 
+> nnFitTime <- train(V8 ~ .,
++                    data = train,
++                    method = "avNNet",
++                    preProc = c("center", "scale"),
++                    trControl = myCvControl,
++                    tuneLength = 10,
++                    linout = T,
++                    trace = F,
++                    MaxNWts = 10 * (ncol(train) + 1) + 10 + 1,
++                    maxit = 500)
+There were 50 or more warnings (use warnings() to see the first 50)
+> nnFitTime
+Model Averaged Neural Network 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 24, 24, 25, 24, 25, ... 
+Resampling results across tuning parameters:
+
+  size  decay         RMSE      Rsquared   MAE     
+   1    0.0000000000  38.82130  0.6561557  33.85368
+   1    0.0001000000  38.25747  0.6424854  33.45995
+   1    0.0002371374  39.18662  0.7115224  34.41165
+   1    0.0005623413  39.07027  0.7497741  33.99392
+   1    0.0013335214  38.94720  0.7446525  33.94674
+   1    0.0031622777  39.88131  0.6950241  34.90836
+   1    0.0074989421  38.84322  0.6895146  33.96118
+   1    0.0177827941  39.43873  0.7472058  34.32508
+   1    0.0421696503  39.86792  0.7175373  34.65025
+   1    0.1000000000  39.23856  0.7203883  33.85457
+   3    0.0000000000  43.05119  0.6870610  37.45681
+   3    0.0001000000  45.32159  0.7339870  40.46790
+   3    0.0002371374  43.00849  0.6970772  38.25177
+   3    0.0005623413  44.26004  0.7323301  39.21664
+   3    0.0013335214  45.86746  0.6774535  41.56206
+   3    0.0031622777  43.23543  0.6685404  38.02012
+   3    0.0074989421  48.51444  0.7342105  42.80052
+   3    0.0177827941  45.74218  0.7351443  40.37334
+   3    0.0421696503  42.94111  0.6763526  37.65197
+   3    0.1000000000  44.09203  0.6709849  38.68629
+   5    0.0000000000  46.96227  0.7218726  41.59168
+   5    0.0001000000  47.12878  0.7006289  41.49082
+   5    0.0002371374  48.38373  0.7186313  42.65308
+   5    0.0005623413  51.60064  0.7390654  46.46478
+   5    0.0013335214  49.09629  0.6989266  43.01224
+   5    0.0031622777  49.19237  0.7109078  43.63161
+   5    0.0074989421  50.50542  0.6797359  45.12842
+   5    0.0177827941  46.98798  0.6521677  41.70770
+   5    0.0421696503  45.97832  0.6888984  40.59563
+   5    0.1000000000  47.11398  0.7211442  41.59338
+   7    0.0000000000  48.79897  0.7356915  43.42284
+   7    0.0001000000  48.50413  0.6453244  43.11433
+   7    0.0002371374  49.50064  0.6886331  44.26105
+   7    0.0005623413  50.06704  0.7418441  45.00966
+   7    0.0013335214  49.35751  0.6366777  44.00759
+   7    0.0031622777  46.26173  0.6738764  41.47810
+   7    0.0074989421  47.17622  0.6238496  41.61559
+   7    0.0177827941  48.70407  0.6849103  43.02227
+   7    0.0421696503  46.84756  0.6140682  41.24315
+   7    0.1000000000  48.41643  0.6453896  42.91070
+   9    0.0000000000  49.13907  0.7032770  44.26303
+   9    0.0001000000  47.55877  0.6714904  41.81689
+   9    0.0002371374  47.67982  0.6955249  42.21018
+   9    0.0005623413  45.80694  0.6456453  40.17804
+   9    0.0013335214  49.01011  0.6600965  43.51030
+   9    0.0031622777  47.33553  0.7257702  42.22435
+   9    0.0074989421  49.72489  0.6435557  44.37558
+   9    0.0177827941  49.01563  0.6485357  43.55965
+   9    0.0421696503  49.84345  0.6312276  44.26066
+   9    0.1000000000  50.83294  0.6514745  45.35350
+  11    0.0000000000  53.74568  0.7082293  48.53497
+  11    0.0001000000  50.52939  0.6646924  45.18721
+  11    0.0002371374  49.29709  0.6776014  42.98148
+  11    0.0005623413  49.75853  0.6886798  44.00193
+  11    0.0013335214  47.29446  0.6480634  42.40292
+  11    0.0031622777  48.69307  0.6829972  43.31499
+  11    0.0074989421  48.42605  0.6120019  43.30211
+  11    0.0177827941  47.62853  0.6482454  42.20613
+  11    0.0421696503  48.96443  0.6357082  43.29922
+  11    0.1000000000  49.36062  0.6576369  44.07283
+  13    0.0000000000       NaN        NaN       NaN
+  13    0.0001000000       NaN        NaN       NaN
+  13    0.0002371374       NaN        NaN       NaN
+  13    0.0005623413       NaN        NaN       NaN
+  13    0.0013335214       NaN        NaN       NaN
+  13    0.0031622777       NaN        NaN       NaN
+  13    0.0074989421       NaN        NaN       NaN
+  13    0.0177827941       NaN        NaN       NaN
+  13    0.0421696503       NaN        NaN       NaN
+  13    0.1000000000       NaN        NaN       NaN
+  15    0.0000000000       NaN        NaN       NaN
+  15    0.0001000000       NaN        NaN       NaN
+  15    0.0002371374       NaN        NaN       NaN
+  15    0.0005623413       NaN        NaN       NaN
+  15    0.0013335214       NaN        NaN       NaN
+  15    0.0031622777       NaN        NaN       NaN
+  15    0.0074989421       NaN        NaN       NaN
+  15    0.0177827941       NaN        NaN       NaN
+  15    0.0421696503       NaN        NaN       NaN
+  15    0.1000000000       NaN        NaN       NaN
+  17    0.0000000000       NaN        NaN       NaN
+  17    0.0001000000       NaN        NaN       NaN
+  17    0.0002371374       NaN        NaN       NaN
+  17    0.0005623413       NaN        NaN       NaN
+  17    0.0013335214       NaN        NaN       NaN
+  17    0.0031622777       NaN        NaN       NaN
+  17    0.0074989421       NaN        NaN       NaN
+  17    0.0177827941       NaN        NaN       NaN
+  17    0.0421696503       NaN        NaN       NaN
+  17    0.1000000000       NaN        NaN       NaN
+  19    0.0000000000       NaN        NaN       NaN
+  19    0.0001000000       NaN        NaN       NaN
+  19    0.0002371374       NaN        NaN       NaN
+  19    0.0005623413       NaN        NaN       NaN
+  19    0.0013335214       NaN        NaN       NaN
+  19    0.0031622777       NaN        NaN       NaN
+  19    0.0074989421       NaN        NaN       NaN
+  19    0.0177827941       NaN        NaN       NaN
+  19    0.0421696503       NaN        NaN       NaN
+  19    0.1000000000       NaN        NaN       NaN
+
+Tuning parameter 'bag' was held constant at a value of FALSE
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were size = 1, decay = 1e-04 and bag = FALSE.
+> summary(nnFitTime)
+            Length Class      Mode     
+model       5      -none-     list     
+repeats     1      -none-     numeric  
+bag         1      -none-     logical  
+seeds       5      -none-     numeric  
+names       7      -none-     character
+terms       3      terms      call     
+coefnames   7      -none-     character
+xlevels     0      -none-     list     
+xNames      7      -none-     character
+problemType 1      -none-     character
+tuneValue   3      data.frame list     
+obsLevels   1      -none-     logical  
+param       4      -none-     list     
+> # MAPE Training
+> y_hat = predict(nnFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 22.40002
+> # MAPE Testing
+> y_hat2 = predict(nnFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 53.19417
+> 
+> 
+> # Neural Network 1 hidden layer (15)
+> grid <-  expand.grid(layer1 = 15,
++                      layer2 = 0,
++                      layer3 = 0)
+> 
+> nnFitTime <- train(V8 ~ .,
++                    data = train,
++                    method = "neuralnet", 
++                    algorithm="backprop",
++                    tuneGrid = grid,
++                    learningrate=0.01,
++                    preProc = c("center", "scale"),
++                    threshold = 0.05,
++                    trControl = myCvControl,
++                    linear.output = T
++ )
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> nnFitTime
+Neural Network 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 25, 25, 24, 24, 24, 24, ... 
+Resampling results:
+
+  RMSE      Rsquared   MAE     
+  54.03059  0.6631518  48.04585
+
+Tuning parameter 'layer1' was held constant at a value of 15
+Tuning parameter 'layer2' was held constant at a value of 0
+
+Tuning parameter 'layer3' was held constant at a value of 0
+> summary(nnFitTime)
+                    Length Class      Mode     
+call                  8    -none-     call     
+response             27    -none-     numeric  
+covariate           189    -none-     numeric  
+model.list            2    -none-     list     
+err.fct               1    -none-     function 
+act.fct               1    -none-     function 
+linear.output         1    -none-     logical  
+data                  8    data.frame list     
+exclude               0    -none-     NULL     
+net.result            1    -none-     list     
+weights               1    -none-     list     
+generalized.weights   1    -none-     list     
+startweights          1    -none-     list     
+result.matrix       139    -none-     numeric  
+xNames                7    -none-     character
+problemType           1    -none-     character
+tuneValue             3    data.frame list     
+obsLevels             1    -none-     logical  
+param                 4    -none-     list     
+> # MAPE Training
+> y_hat = predict(nnFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 9.34677
+> # MAPE Testing
+> y_hat2 = predict(nnFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 68.93981
+> plot(nnFitTime$finalModel)
+> 
+> # Neural Network 3 hidden layer (5, 5, 5)
+> grid <-  expand.grid(layer1 = 5,
++                      layer2 = 5,
++                      layer3 = 5)
+> 
+> 
+> nnFitTime <- train(V8 ~ .,
++                    data = train,
++                    method = "neuralnet", 
++                    algorithm="backprop",
++                    learningrate=0.01,
++                    tuneGrid = grid,
++                    threshold = 0.05,
++                    preProc = c("center", "scale", "nzv"),
++                    trControl = myCvControl
++ )
+> 
+> nnFitTime
+Neural Network 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 24, 24, 25, 24, 24, ... 
+Resampling results:
+
+  RMSE      Rsquared   MAE     
+  34.84633  0.6350705  30.39275
+
+Tuning parameter 'layer1' was held constant at a value of 5
+Tuning parameter 'layer2' was held constant at a value of 5
+
+Tuning parameter 'layer3' was held constant at a value of 5
+> summary(nnFitTime)
+                    Length Class      Mode     
+call                  7    -none-     call     
+response             27    -none-     numeric  
+covariate           189    -none-     numeric  
+model.list            2    -none-     list     
+err.fct               1    -none-     function 
+act.fct               1    -none-     function 
+linear.output         1    -none-     logical  
+data                  8    data.frame list     
+exclude               0    -none-     NULL     
+net.result            1    -none-     list     
+weights               1    -none-     list     
+generalized.weights   1    -none-     list     
+startweights          1    -none-     list     
+result.matrix       109    -none-     numeric  
+xNames                7    -none-     character
+problemType           1    -none-     character
+tuneValue             3    data.frame list     
+obsLevels             1    -none-     logical  
+param                 3    -none-     list     
+> # MAPE Training
+> y_hat = predict(nnFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 21.30675
+> # MAPE Testing
+> y_hat2 = predict(nnFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 58.21377
+> plot(nnFitTime$finalModel)
+
+> #------------------------------------------------------------------
+> # selected product = 5th Top
+> #11740941
+> #11741274
+> #11629829
+> 
+> product <- top_products$item_sk[5]
+> product
+[1] 11629829
+> 
+> # Filter the data for selected product only
+> xy <- data %>% 
++   filter(item_sk == product, quantity != 603) %>%  # filter product & outliner
++   select(-item_sk)
+> 
+> # Check for any missing dates in the data
+> 
+> is_continuous <- all(diff(xy$Date) == 1)
+> 
+> # Remove the data as well
+> xy$date <- NULL
+> 
+> # Reshape the dataframe to have 7 independent and 1 dependent (8 in total cols)
+> 
+> total_rows = nrow(xy)
+> rows_to_reshape = total_rows - (total_rows %% 8)
+> reshaped_xy <- 
++   as.data.frame(matrix(xy[1:rows_to_reshape, 1], ncol = 8, byrow = TRUE))
+> 
+> 
+> trainIndex<-createDataPartition(reshaped_xy$V8, p=0.8, list=FALSE)
+> train<-reshaped_xy[trainIndex,]
+> test<-reshaped_xy[-trainIndex,]
+> 
+> 
+> # Set X and y
+> X <- train[,1:7]
+> y <- train[,8]
+> 
+> X_test <- test[,1:7]
+> y_test <- test[,8]
+> 
+> myCvControl <- trainControl(method = "repeatedCV",
++                             number=10,
++                             repeats = 5)
+Warning message:
+`repeats` has no meaning for this resampling method. 
+> 
+> ###########################
+> 
+> # Neural Network
+> # Averaged Neural Network
+> 
+> nnFitTime <- train(V8 ~ .,
++                    data = train,
++                    method = "avNNet",
++                    preProc = c("center", "scale"),
++                    trControl = myCvControl,
++                    tuneLength = 10,
++                    linout = T,
++                    trace = F,
++                    MaxNWts = 10 * (ncol(train) + 1) + 10 + 1,
++                    maxit = 500)
+There were 50 or more warnings (use warnings() to see the first 50)
+> nnFitTime
+Model Averaged Neural Network 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 25, 24, 24, 24, 24, 24, ... 
+Resampling results across tuning parameters:
+
+  size  decay         RMSE       Rsquared   MAE     
+   1    0.0000000000   59.35624  0.7075122  46.97583
+   1    0.0001000000   61.00415  0.7313885  48.13882
+   1    0.0002371374   61.70494  0.6938036  50.79028
+   1    0.0005623413   64.26229  0.6654636  51.72444
+   1    0.0013335214   67.09490  0.6681857  54.41737
+   1    0.0031622777   72.63921  0.7835327  58.99271
+   1    0.0074989421   74.53901  0.7498587  61.16394
+   1    0.0177827941   72.02775  0.7507996  58.06490
+   1    0.0421696503   71.49718  0.7472851  58.24770
+   1    0.1000000000   76.12588  0.7693780  62.38817
+   3    0.0000000000   69.21173  0.6868735  55.26437
+   3    0.0001000000   74.78649  0.7355562  60.74430
+   3    0.0002371374   75.95605  0.7206408  60.81777
+   3    0.0005623413   80.92379  0.6842189  67.95064
+   3    0.0013335214   84.50576  0.7072992  72.67119
+   3    0.0031622777   85.18978  0.6740662  69.53699
+   3    0.0074989421   89.80829  0.7097261  73.87051
+   3    0.0177827941   90.22635  0.7027212  75.64708
+   3    0.0421696503   87.06733  0.7505573  72.89111
+   3    0.1000000000   86.33170  0.7665595  69.62392
+   5    0.0000000000   86.50426  0.7042956  71.64489
+   5    0.0001000000   87.88347  0.7196924  73.93306
+   5    0.0002371374   89.41757  0.6976622  73.66256
+   5    0.0005623413   92.28530  0.6772342  76.85080
+   5    0.0013335214   91.17191  0.7118086  75.93829
+   5    0.0031622777   86.88064  0.6929190  71.69136
+   5    0.0074989421   89.40687  0.6830363  74.03467
+   5    0.0177827941   88.32261  0.7047196  74.43528
+   5    0.0421696503   85.63091  0.7070265  71.55343
+   5    0.1000000000   90.71773  0.7754558  76.97459
+   7    0.0000000000   98.76277  0.7112894  81.47542
+   7    0.0001000000   90.18764  0.7001948  74.67041
+   7    0.0002371374   93.91304  0.7218802  79.63811
+   7    0.0005623413   94.90545  0.6958801  80.74564
+   7    0.0013335214   88.65550  0.6528396  72.91859
+   7    0.0031622777   91.69827  0.7029147  76.50438
+   7    0.0074989421   91.52887  0.7261326  76.65288
+   7    0.0177827941   92.51657  0.6752572  76.70883
+   7    0.0421696503   91.81102  0.7021268  76.97494
+   7    0.1000000000   88.82533  0.7117430  72.51911
+   9    0.0000000000   96.50379  0.7029575  81.23788
+   9    0.0001000000   93.35423  0.7060722  79.76666
+   9    0.0002371374   92.19562  0.7396442  76.77815
+   9    0.0005623413   99.54155  0.7001064  83.87753
+   9    0.0013335214   88.23295  0.6949169  71.49641
+   9    0.0031622777   92.83785  0.6953780  76.88168
+   9    0.0074989421   89.15609  0.7050401  74.63697
+   9    0.0177827941   87.30869  0.6477535  73.05993
+   9    0.0421696503   91.60624  0.6766507  76.94471
+   9    0.1000000000   92.64879  0.6827365  75.85338
+  11    0.0000000000  101.56720  0.7008818  85.89389
+  11    0.0001000000   97.18802  0.7772245  79.87905
+  11    0.0002371374   98.40308  0.6881799  81.10235
+  11    0.0005623413   95.41204  0.7580313  79.80485
+  11    0.0013335214   93.31376  0.6844055  77.15111
+  11    0.0031622777   94.34051  0.6747656  77.76066
+  11    0.0074989421   92.76885  0.7069064  76.27370
+  11    0.0177827941   92.85653  0.6843882  77.05880
+  11    0.0421696503   91.99741  0.6535866  76.15282
+  11    0.1000000000   93.12135  0.6553160  76.48754
+  13    0.0000000000        NaN        NaN       NaN
+  13    0.0001000000        NaN        NaN       NaN
+  13    0.0002371374        NaN        NaN       NaN
+  13    0.0005623413        NaN        NaN       NaN
+  13    0.0013335214        NaN        NaN       NaN
+  13    0.0031622777        NaN        NaN       NaN
+  13    0.0074989421        NaN        NaN       NaN
+  13    0.0177827941        NaN        NaN       NaN
+  13    0.0421696503        NaN        NaN       NaN
+  13    0.1000000000        NaN        NaN       NaN
+  15    0.0000000000        NaN        NaN       NaN
+  15    0.0001000000        NaN        NaN       NaN
+  15    0.0002371374        NaN        NaN       NaN
+  15    0.0005623413        NaN        NaN       NaN
+  15    0.0013335214        NaN        NaN       NaN
+  15    0.0031622777        NaN        NaN       NaN
+  15    0.0074989421        NaN        NaN       NaN
+  15    0.0177827941        NaN        NaN       NaN
+  15    0.0421696503        NaN        NaN       NaN
+  15    0.1000000000        NaN        NaN       NaN
+  17    0.0000000000        NaN        NaN       NaN
+  17    0.0001000000        NaN        NaN       NaN
+  17    0.0002371374        NaN        NaN       NaN
+  17    0.0005623413        NaN        NaN       NaN
+  17    0.0013335214        NaN        NaN       NaN
+  17    0.0031622777        NaN        NaN       NaN
+  17    0.0074989421        NaN        NaN       NaN
+  17    0.0177827941        NaN        NaN       NaN
+  17    0.0421696503        NaN        NaN       NaN
+  17    0.1000000000        NaN        NaN       NaN
+  19    0.0000000000        NaN        NaN       NaN
+  19    0.0001000000        NaN        NaN       NaN
+  19    0.0002371374        NaN        NaN       NaN
+  19    0.0005623413        NaN        NaN       NaN
+  19    0.0013335214        NaN        NaN       NaN
+  19    0.0031622777        NaN        NaN       NaN
+  19    0.0074989421        NaN        NaN       NaN
+  19    0.0177827941        NaN        NaN       NaN
+  19    0.0421696503        NaN        NaN       NaN
+  19    0.1000000000        NaN        NaN       NaN
+
+Tuning parameter 'bag' was held constant at a value of FALSE
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were size = 1, decay = 0 and bag = FALSE.
+> summary(nnFitTime)
+            Length Class      Mode     
+model       5      -none-     list     
+repeats     1      -none-     numeric  
+bag         1      -none-     logical  
+seeds       5      -none-     numeric  
+names       7      -none-     character
+terms       3      terms      call     
+coefnames   7      -none-     character
+xlevels     0      -none-     list     
+xNames      7      -none-     character
+problemType 1      -none-     character
+tuneValue   3      data.frame list     
+obsLevels   1      -none-     logical  
+param       4      -none-     list     
+> # MAPE Training
+> y_hat = predict(nnFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 55.47726
+> # MAPE Testing
+> y_hat2 = predict(nnFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 25.38697
+> 
+> 
+> # Neural Network 1 hidden layer (15)
+> grid <-  expand.grid(layer1 = 15,
++                      layer2 = 0,
++                      layer3 = 0)
+> 
+> nnFitTime <- train(V8 ~ .,
++                    data = train,
++                    method = "neuralnet", 
++                    algorithm="backprop",
++                    tuneGrid = grid,
++                    learningrate=0.01,
++                    preProc = c("center", "scale"),
++                    threshold = 0.1,
++                    trControl = myCvControl
++ )
+There were 50 or more warnings (use warnings() to see the first 50)
+> 
+> nnFitTime
+Neural Network 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 25, 24, 24, 25, 24, ... 
+Resampling results:
+
+  RMSE      Rsquared  MAE     
+  108.9745  0.612926  87.70671
+
+Tuning parameter 'layer1' was held constant at a value of 15
+Tuning parameter 'layer2' was held constant at a value of 0
+
+Tuning parameter 'layer3' was held constant at a value of 0
+> summary(nnFitTime)
+                    Length Class      Mode     
+call                  7    -none-     call     
+response             27    -none-     numeric  
+covariate           189    -none-     numeric  
+model.list            2    -none-     list     
+err.fct               1    -none-     function 
+act.fct               1    -none-     function 
+linear.output         1    -none-     logical  
+data                  8    data.frame list     
+exclude               0    -none-     NULL     
+net.result            1    -none-     list     
+weights               1    -none-     list     
+generalized.weights   1    -none-     list     
+startweights          1    -none-     list     
+result.matrix       139    -none-     numeric  
+xNames                7    -none-     character
+problemType           1    -none-     character
+tuneValue             3    data.frame list     
+obsLevels             1    -none-     logical  
+param                 3    -none-     list     
+> # MAPE Training
+> y_hat = predict(nnFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 17.18322
+> # MAPE Testing
+> y_hat2 = predict(nnFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 97.3589
+> plot(nnFitTime$finalModel)
+> 
+> # Neural Network 3 hidden layer (5, 5, 5)
+> grid <-  expand.grid(layer1 = 5,
++                      layer2 = 5,
++                      layer3 = 5)
+> 
+> 
+> nnFitTime <- train(V8 ~ .,
++                    data = train,
++                    method = "neuralnet", 
++                    algorithm="backprop",
++                    learningrate=0.01,
++                    tuneGrid = grid,
++                    threshold = 0.1,
++                    preProc = c("center", "scale", "nzv"),
++                    trControl = myCvControl
++ )
+> 
+> nnFitTime
+Neural Network 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 25, 24, 24, 24, 24, ... 
+Resampling results:
+
+  RMSE      Rsquared   MAE     
+  64.28829  0.6764261  52.04046
+
+Tuning parameter 'layer1' was held constant at a value of 5
+Tuning parameter 'layer2' was held constant at a value of 5
+
+Tuning parameter 'layer3' was held constant at a value of 5
+> summary(nnFitTime)
+                    Length Class      Mode     
+call                  7    -none-     call     
+response             27    -none-     numeric  
+covariate           189    -none-     numeric  
+model.list            2    -none-     list     
+err.fct               1    -none-     function 
+act.fct               1    -none-     function 
+linear.output         1    -none-     logical  
+data                  8    data.frame list     
+exclude               0    -none-     NULL     
+net.result            1    -none-     list     
+weights               1    -none-     list     
+generalized.weights   1    -none-     list     
+startweights          1    -none-     list     
+result.matrix       109    -none-     numeric  
+xNames                7    -none-     character
+problemType           1    -none-     character
+tuneValue             3    data.frame list     
+obsLevels             1    -none-     logical  
+param                 3    -none-     list     
+> # MAPE Training
+> y_hat = predict(nnFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 93.80789
+> # MAPE Testing
+> y_hat2 = predict(nnFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 68.23294
+> plot(nnFitTime$finalModel)

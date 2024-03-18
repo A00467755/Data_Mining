@@ -1,0 +1,29 @@
+
+#install.packages("neuralnet")
+library(neuralnet)
+nnFitTime = neuralnet(V8 ~ .,
+                      data = reshaped_xy,
+                      hidden=15,
+                      act.fct="logistic",
+                      linear.out=F,
+                      algorithm="backprop",
+                      learningrate = 0.01
+)
+y_hat = compute(nnFitTime,covariate=X)
+
+mean(100*abs(array(y_hat$net.result)-y)/y)
+
+
+nnFitTime = neuralnet(V8 ~ .,
+                      data = reshaped_xy,
+                      hidden=c(5,5,5),
+                      act.fct="logistic",
+                      linear.out=F,
+                      algorithm="backprop",
+                      learningrate = 0.01
+)
+y_hat = compute(nnFitTime,covariate=X)
+
+mean(100*abs(array(y_hat$net.result)-y)/y)
+
+y_hat$net.result

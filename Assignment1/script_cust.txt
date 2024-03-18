@@ -1,0 +1,94 @@
+
+
+SELECT
+CUSTOMER_SK,
+sum(SELLING_RETAIL_AMT) as TOTAL_REVENUE,
+count(distinct TRANSACTION_RK) as BASKETS,
+count(distinct CUSTOMER_SK) as DISTINCT_CUSTOMERS,
+avg(SELLING_RETAIL_AMT/NULLIF(ITEM_QTY,0)) as AVERAGE_PRICE,
+COUNT(IF(WEEKDAY(`date`)>=5, 1, NULL)) as BASKETS_WEEKEND,
+COUNT(IF(WEEKDAY(`date`)>=5, 1, NULL))/count(distinct TRANSACTION_RK) as PERCENTAGE_BASKETS_WEEKEND
+FROM dataset01.sales219
+GROUP BY CUSTOMER_SK
+ORDER BY TOTAL_REVENUE DESC
+LIMIT 2000;
+
+
+********************************
+
+	SQL Script
+
+********************************
+
+// Create custuctcluster table
+
+CREATE TABLE custuctcluseter as
+SELECT
+CUSTOMER_SK,
+sum(SELLING_RETAIL_AMT) as TOTAL_REVENUE,
+count(distinct TRANSACTION_RK) as BASKETS,
+count(distinct CUSTOMER_SK) as DISTINCT_CUSTOMERS,
+avg(SELLING_RETAIL_AMT/NULLIF(ITEM_QTY,0)) as AVERAGE_PRICE
+FROM dataset01.sales219
+GROUP BY CUSTOMER_SK
+ORDER BY TOTAL_REVENUE DESC
+LIMIT 2000;
+
+// Extract custuctcluser table as custuctcluster.csv (Keep the row with column names)
+
+
+****************************************
+
+	R Script (Use RStudio to run this)
+
+****************************************
+
+//Load All Libraries
+
+library(ggplot2)
+library(GGally)
+library(DMwR)
+
+install.packages("GGally") // OPTIONAL - only if you don't have
+install.packages("DMwR")   // OPTIONAL - only if you don't have
+
+
+cust <- read.csv("~/Downloads/custuctcluseter.csv") // You can use option "import Dataset" to import CSV file if you are getting path error
+
+View(cust) // To View the loaded dataset
+
+
+ggpairs(cust[, which(names(cust) != "CUSTOMER_SK")], upper = list(continuous = ggally_points),lower = list(continuous = "points"), title = "custucts before outlier removal") // To visualize data
+
+boxplot(cust$BASKETS) // For Box and Whisker plot. here cust is dataset and BASKETS is column
+
+cust.clean <- cust[cust$CUSTOMER_SK != 11740941, ] // Remove outliers
+
+cust.scale = scale(cust.clean[-1]) // Normalize data using scale and exclude CUSTOMER_SK column. -1 will remove first column that is CUSTOMER_SK and keep all other.
+
+
+
+withinSSrange <- function(data,low,high,maxIter)
+{
+   withinss = array(0, dim=c(high-low+1));
+   for(i in low:high)
+   {
+      withinss[i-low+1] <- kmeans(data, i, maxIter)$tot.withinss
+   }
+   withinss
+}        
+
+plot(withinSSrange(cust.scale,1,50,150)) // Elbow plot to determine the optimal number of clusters between 1 and 50.
+
+pkm = kmeans(cust.scale, 5, 150) // K-means using k=5 for custucts based on results of  elbow plot.
+
+cust.realCenters = unscale(pkm$centers, cust.scale) // Denormalize data by reversing scale function
+
+clusteredcust = cbind(cust.clean, pkm$cluster) // Bind clusers to cleansed Data
+
+plot(clusteredcust[,2:5], col=pkm$cluster) // Visualizing clusering results. Here we want all rows so we are not mentioning anything but we want columns only from 2 to 5 (we don't want to visualize first column - CUSTOMER_SK).
+
+
+
+
+

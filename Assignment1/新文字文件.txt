@@ -1,0 +1,28 @@
+Report Content need to include sections in report writing video e.g. Execute Summary, Objective, About the data ...
+
+Can join with other tables for extra fields ? e.g. member, items
+But there is error:
+#1267 - Illegal mix of collations (utf8mb3_unicode_ci,IMPLICIT) and (utf8mb3_general_ci,IMPLICIT) for operation '='
+
+Any data dictionary?
+
+
+To do:
+Report Content in Video (TBC)
+Data cleaning/ outliners
+Determine additional attributes (customercluster + productcluster)
+customercluster SQL 
+productcluster SQL (Add a additional field)
+
+customercluster Analysis
+•	number of products bought
+•	number of distinct products bought
+•	revenues
+•	number of visits
+•	additional attributes that you think are appropriate
+
+productcluster Analysis
+•	number of distinct customers who buy the product
+•	revenues
+•	number of visits in which the product is bought
+•	additional attributes that you think are appropriate

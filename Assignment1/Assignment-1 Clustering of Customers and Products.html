@@ -1,0 +1,28 @@
+<!DOCTYPE html><html><head><link rel="stylesheet" href="https://templates.lcs.brightspace.com/lib/assets/css/styles.min.css"><link rel="stylesheet" href="/d2l/le/contentstyler/6606/files/View" data-override="override"></head><body>
+<p><span style="font-size: 12pt;">Cluster the customers and products for the retail dataset.</span></p>
+<p><span style="font-size: 12pt;">We want to cluster customers based on:</span></p>
+<ul>
+<li><span style="font-size: 12pt;">number of products bought</span></li>
+<li><span style="font-size: 12pt;">number of distinct products bought</span></li>
+<li><span style="font-size: 12pt;">revenues</span></li>
+<li><span style="font-size: 12pt;">number of visits</span></li>
+<li><span style="font-size: 12pt;">additional attributes that you think are appropriate</span></li>
+</ul>
+<p><span style="font-size: 12pt;">We want to cluster products based on:</span></p>
+<ul>
+<li><span style="font-size: 12pt;">number of distinct customers who buy the product</span></li>
+<li><span style="font-size: 12pt;">revenues</span></li>
+<li><span style="font-size: 12pt;">number of visits in which the product is bought</span></li>
+<li><span style="font-size: 12pt;">additional attributes that you think are appropriate</span></li>
+</ul>
+<p><span style="font-size: 12pt;">As part of the process, we may find outliers, which may lead to some data cleaning. You should submit a report of your findings that may be beneficial to the business owner in understanding the nature of customers. The report should also briefly outline the data cleaning and preparation.</span></p>
+<p><span style="font-size: 12pt;">Suggested detailed algorithm and report contents:</span></p>
+<ol>
+<li><span style="font-size: 12pt;">Make sure that your data does not have values that are too high or too low. You can find these values with the help of max and min functions in a spreadsheet. You could also look at the distributions of each attributes through R or spreadsheet. If you choose to delete some records, please describe how you found the outliers and what were the values.</span></li>
+<li><span style="font-size: 12pt;">Once all the values are in reasonable ranges, normalize them so that no values are larger than 100. You have to be careful with such a normalization.</span></li>
+<li><span style="font-size: 12pt;">Experiment with different number of clusters using simple K-means in R. I would suggest using 5, 10, 15 as number of clusters. Clustering may help you further identify outlying objects. If you go further and find the optimal number of clusters, that will be even better, especially if you can justify your answer.</span></li>
+<li><span style="font-size: 12pt;">When you are presenting the results use the centroid data produced by R. You may also plot the cluster distribution by varying X and Y values in R. Show only those graphs that are more meaningful.</span></li>
+</ol>
+<h5><span style="font-size: 12pt;">Using your judgement instead of blindly following instructions is an important trait. Creativity with justification is encouraged.</span></h5>
+<p><span style="font-size: 12pt;"><strong>Note for submission:</strong>&nbsp;Submit a pdf (no word processor files) file describing your data processing efforts and analysis. Add the programs, R commands, and queries in appendix.</span></p>
+</body></html>

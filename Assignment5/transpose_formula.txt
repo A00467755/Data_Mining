@@ -1,0 +1,1 @@
+=INDEX($A:$A,ROW(A1)*8-8+COLUMN(A1))

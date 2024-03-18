@@ -1,0 +1,827 @@
+> library(tidyverse)
+> library(caret)
+> library(e1071)
+> 
+> setwd("D:/#Spring 2023/5580 - Text Mining/Assignment5")
+> 
+> set.seed(1)
+> 
+> # Read the data file which has info about top 6 products from sales219
+> data <- read.csv('data.csv')
+> 
+> # setup functions
+> mape <- function(actual,pred) {
++   mape <- mean(abs((actual-pred)/actual))*100
++   return (mape)
++ }
+> 
+> # Read the data file which has info about top 6 products from sales219
+> data <- read.csv('data.csv')
+> 
+> # Get top 6 product ids in list
+> top_products <- data %>% 
++   group_by(item_sk) %>% 
++   summarize(total_quantity = sum(quantity)) %>% 
++   select(item_sk, total_quantity) %>% 
++   arrange(desc(total_quantity))
+> 
+> #---------------------------------------------------------------------------
+> # selected product = Top 1st
+> #11740941
+> #11741274
+> #11629829
+> product <- top_products$item_sk[1]
+> product
+[1] 11740941
+> 
+> # Filter the data for selected product only
+> xy <- data %>% 
++   filter(item_sk == product, quantity != 3) %>% 
++   select(-item_sk)
+> 
+> # Check for any missing dates in the data
+> 
+> is_continuous <- all(diff(xy$Date) == 1)
+> 
+> # Remove the data as well
+> xy$date <- NULL
+> 
+> # Reshape the dataframe to have 7 independent and 1 dependent (8 in total cols)
+> 
+> total_rows = nrow(xy)
+> rows_to_reshape = total_rows - (total_rows %% 8)
+> reshaped_xy <- 
++   as.data.frame(matrix(xy[1:rows_to_reshape, 1], ncol = 8, byrow = TRUE))
+> 
+> 
+> trainIndex<-createDataPartition(reshaped_xy$V8, p=0.8, list=FALSE)
+> train<-reshaped_xy[trainIndex,]
+> test<-reshaped_xy[-trainIndex,]
+> 
+> 
+> # Set X and y
+> X <- train[,1:7]
+> y <- train[,8]
+> 
+> X_test <- test[,1:7]
+> y_test <- test[,8]
+> 
+> myCvControl <- trainControl(method = "repeatedCV",
++                             number=10,
++                             repeats = 5)
+Warning message:
+`repeats` has no meaning for this resampling method. 
+> # Support Vector Regression
+> # method = svmRadial
+> cat(product , "svmRadial")
+11740941 svmRadial> svmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "svmRadial",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl)
+> svmFitTime
+Support Vector Machines with Radial Basis Function Kernel 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 25, 24, 25, 24, 24, ... 
+Resampling results across tuning parameters:
+
+  C       RMSE      Rsquared   MAE     
+    0.25  64.08148  0.7975307  53.88688
+    0.50  62.42463  0.7610670  51.97124
+    1.00  65.37114  0.7222749  55.19914
+    2.00  71.44978  0.6975062  60.53483
+    4.00  78.35225  0.6853026  66.24954
+    8.00  82.13271  0.6843033  69.74372
+   16.00  82.05953  0.6852691  69.68440
+   32.00  82.05953  0.6852691  69.68440
+   64.00  82.05953  0.6852691  69.68440
+  128.00  82.05953  0.6852691  69.68440
+
+Tuning parameter 'sigma' was held constant at a value of 0.2024405
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were sigma = 0.2024405 and C = 0.5.
+> summary(svmFitTime)
+Length  Class   Mode 
+     1   ksvm     S4 
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 11.71671
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 18.26522
+> # method = svmLinear
+> cat(product , "svmLinear")
+11740941 svmLinear> svmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "svmLinear",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl)
+> svmFitTime
+Support Vector Machines with Linear Kernel 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 24, 25, 24, 24, 25, ... 
+Resampling results:
+
+  RMSE      Rsquared   MAE     
+  82.45617  0.6387506  69.15861
+
+Tuning parameter 'C' was held constant at a value of 1
+> summary(svmFitTime)
+Length  Class   Mode 
+     1   ksvm     S4 
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 14.88559
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 20.87949
+> # method = svmPoly
+> cat(product , "svmPoly")
+11740941 svmPoly> svmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "svmPoly",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl,
++                     tuneGrid = expand.grid(
++                       C = c(1e-1, 1e0, 1e1, 1e2, 1e3, 1e4),
++                       degree = c(1, 2, 3, 4,5,6),
++                       scale = 0.001)
++                     )
+> svmFitTime
+Support Vector Machines with Polynomial Kernel 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 25, 25, 24, 24, 24, ... 
+Resampling results across tuning parameters:
+
+  C      degree  RMSE       Rsquared   MAE      
+  1e-01  1        73.55824  0.6147493   63.76561
+  1e-01  2        73.46478  0.6151560   63.64232
+  1e-01  3        73.37252  0.6140579   63.53394
+  1e-01  4        73.27987  0.6127780   63.42548
+  1e-01  5        73.18732  0.6107181   63.31717
+  1e-01  6        73.09354  0.6120832   63.20859
+  1e+00  1        72.76204  0.6201522   62.89869
+  1e+00  2        72.10869  0.6332848   62.44691
+  1e+00  3        71.71738  0.6441611   62.18239
+  1e+00  4        71.69037  0.6254789   62.27158
+  1e+00  5        71.62639  0.6219910   62.33192
+  1e+00  6        71.40476  0.6234699   62.23827
+  1e+01  1        70.96112  0.6215037   61.90183
+  1e+01  2        71.99497  0.6187099   62.71736
+  1e+01  3        73.43456  0.6061303   63.89202
+  1e+01  4        73.97552  0.6194540   64.33366
+  1e+01  5        74.38728  0.6210145   64.64864
+  1e+01  6        74.82973  0.6211369   64.88486
+  1e+02  1        77.55029  0.5959197   66.56543
+  1e+02  2        80.61461  0.6062223   67.83912
+  1e+02  3        82.36920  0.5928625   69.45635
+  1e+02  4        83.16996  0.5970504   69.97326
+  1e+02  5        82.74938  0.5727291   69.31515
+  1e+02  6        81.47318  0.5659279   67.93159
+  1e+03  1        88.06281  0.5616421   74.49083
+  1e+03  2        85.39427  0.5585207   71.58462
+  1e+03  3        75.79175  0.5980777   63.40067
+  1e+03  4        69.63759  0.6264520   59.42871
+  1e+03  5        70.17160  0.6510630   60.92572
+  1e+03  6        73.53432  0.6728755   64.71354
+  1e+04  1        89.28412  0.5642811   75.48799
+  1e+04  2        70.33507  0.6487463   61.02457
+  1e+04  3        85.68248  0.6594849   77.84804
+  1e+04  4       104.13878  0.6251877   95.07928
+  1e+04  5       126.59597  0.5931050  113.57099
+  1e+04  6       151.53478  0.5943769  133.57521
+
+Tuning parameter 'scale' was held constant at a value of 0.001
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were degree = 4, scale = 0.001 and C = 1000.
+> summary(svmFitTime)
+Length  Class   Mode 
+     1   ksvm     S4 
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 10.7311
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 18.60164
+> library(tidyverse)
+> library(caret)
+> library(e1071)
+> 
+> setwd("D:/#Spring 2023/5580 - Text Mining/Assignment5")
+> 
+> set.seed(1)
+> 
+> # Read the data file which has info about top 6 products from sales219
+> data <- read.csv('data.csv')
+> 
+> # Get top 6 product ids in list
+> top_products <- data %>% 
++   group_by(item_sk) %>% 
++   summarize(total_quantity = sum(quantity)) %>% 
++   select(item_sk, total_quantity) %>% 
++   arrange(desc(total_quantity))
+> 
+> #---------------------------------------------------------------------------
+> # selected product = Top 1st
+> #11740941
+> #11741274
+> #11629829
+> product <- top_products$item_sk[1]
+> product
+[1] 11740941
+> 
+> # Filter the data for selected product only
+> xy <- data %>% 
++   filter(item_sk == product, quantity != 3) %>% 
++   select(-item_sk)
+> 
+> # Check for any missing dates in the data
+> 
+> is_continuous <- all(diff(xy$Date) == 1)
+> 
+> # Remove the data as well
+> xy$date <- NULL
+> 
+> # Reshape the dataframe to have 7 independent and 1 dependent (8 in total cols)
+> 
+> total_rows = nrow(xy)
+> rows_to_reshape = total_rows - (total_rows %% 8)
+> reshaped_xy <- 
++   as.data.frame(matrix(xy[1:rows_to_reshape, 1], ncol = 8, byrow = TRUE))
+> 
+> 
+> trainIndex<-createDataPartition(reshaped_xy$V8, p=0.8, list=FALSE)
+> train<-reshaped_xy[trainIndex,]
+> test<-reshaped_xy[-trainIndex,]
+> 
+> 
+> # Set X and y
+> X <- train[,1:7]
+> y <- train[,8]
+> 
+> X_test <- test[,1:7]
+> y_test <- test[,8]
+> 
+> myCvControl <- trainControl(method = "repeatedCV",
++                             number=10,
++                             repeats = 5)
+Warning message:
+`repeats` has no meaning for this resampling method. 
+> # Kernel = “sigmoid”
+> cat(product , "sigmoid")
+11740941 sigmoid> 
+> svmFitTime=svm(V8 ~ .,
++                data = train,kernek="sigmoid")
+> svmFitTime
+
+Call:
+svm(formula = V8 ~ ., data = train, kernek = "sigmoid")
+
+
+Parameters:
+   SVM-Type:  eps-regression 
+ SVM-Kernel:  radial 
+       cost:  1 
+      gamma:  0.1428571 
+    epsilon:  0.1 
+
+
+Number of Support Vectors:  27
+
+> summary(svmFitTime)
+
+Call:
+svm(formula = V8 ~ ., data = train, kernek = "sigmoid")
+
+
+Parameters:
+   SVM-Type:  eps-regression 
+ SVM-Kernel:  radial 
+       cost:  1 
+      gamma:  0.1428571 
+    epsilon:  0.1 
+
+
+Number of Support Vectors:  27
+
+
+
+
+
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 10.36267
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 18.26422
+> # selected product =  3 rd Top
+> #11740941
+> #11741274
+> #11629829
+> product <- top_products$item_sk[3]
+> product
+[1] 11741274
+> 
+> # Filter the data for selected product only
+> xy <- data %>% 
++   filter(item_sk == product, quantity != 1) %>% 
++   select(-item_sk)
+> 
+> # Check for any missing dates in the data
+> 
+> is_continuous <- all(diff(xy$Date) == 1)
+> 
+> # Remove the data as well
+> xy$date <- NULL
+> 
+> # Reshape the dataframe to have 7 independent and 1 dependent (8 in total cols)
+> 
+> total_rows = nrow(xy)
+> rows_to_reshape = total_rows - (total_rows %% 8)
+> reshaped_xy <- 
++   as.data.frame(matrix(xy[1:rows_to_reshape, 1], ncol = 8, byrow = TRUE))
+> 
+> 
+> trainIndex<-createDataPartition(reshaped_xy$V8, p=0.8, list=FALSE)
+> train<-reshaped_xy[trainIndex,]
+> test<-reshaped_xy[-trainIndex,]
+> 
+> 
+> # Set X and y
+> X <- train[,1:7]
+> y <- train[,8]
+> 
+> X_test <- test[,1:7]
+> y_test <- test[,8]
+> 
+> myCvControl <- trainControl(method = "repeatedCV",
++                             number=10,
++                             repeats = 5)
+Warning message:
+`repeats` has no meaning for this resampling method. 
+> 
+> 
+> # Support Vector Regression
+> # method = svmRadial
+> cat(product , "svmRadial")
+11741274 svmRadial> svmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "svmRadial",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl)
+> svmFitTime
+Support Vector Machines with Radial Basis Function Kernel 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 25, 24, 24, 24, 24, 25, ... 
+Resampling results across tuning parameters:
+
+  C       RMSE      Rsquared   MAE     
+    0.25  32.63416  0.7574235  27.93539
+    0.50  31.11401  0.7345328  26.30532
+    1.00  31.81240  0.7166902  26.97604
+    2.00  31.50752  0.7167079  27.08650
+    4.00  33.19105  0.7237418  28.28989
+    8.00  37.28125  0.7124632  31.47990
+   16.00  39.46992  0.7136572  33.63473
+   32.00  39.71876  0.7236006  34.02679
+   64.00  38.92351  0.6666740  33.16580
+  128.00  38.60918  0.6671279  32.86900
+
+Tuning parameter 'sigma' was held constant at a value of 0.07200923
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were sigma = 0.07200923 and C = 0.5.
+> summary(svmFitTime)
+Length  Class   Mode 
+     1   ksvm     S4 
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 18.05805
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 40.81596
+> 
+> # method = svmLinear
+> cat(product , "svmLinear")
+11741274 svmLinear> svmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "svmLinear",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl)
+> svmFitTime
+Support Vector Machines with Linear Kernel 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 25, 24, 24, 24, 24, 24, ... 
+Resampling results:
+
+  RMSE      Rsquared   MAE     
+  40.66145  0.6177963  34.83248
+
+Tuning parameter 'C' was held constant at a value of 1
+> summary(svmFitTime)
+Length  Class   Mode 
+     1   ksvm     S4 
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 19.41312
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 51.3755
+> 
+> 
+> # method = svmPoly
+> cat(product , "svmPoly")
+11741274 svmPoly> svmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "svmPoly",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl,
++                     tuneGrid = expand.grid(
++                       C = c(1e-1, 1e0, 1e1, 1e2, 1e3, 1e4),
++                       degree = c(1, 2, 3, 4, 5, 6),
++                       scale = 0.001)
++ )
+> svmFitTime
+Support Vector Machines with Polynomial Kernel 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 24, 25, 24, 24, 24, ... 
+Resampling results across tuning parameters:
+
+  C      degree  RMSE      Rsquared   MAE     
+  1e-01  1       35.19608  0.7208977  30.23723
+  1e-01  2       35.15046  0.7209920  30.18742
+  1e-01  3       35.10822  0.7210888  30.14117
+  1e-01  4       35.07399  0.7188189  30.10235
+  1e-01  5       35.04627  0.7183507  30.06829
+  1e-01  6       35.01966  0.7222145  30.03816
+  1e+00  1       34.94991  0.7126496  29.96176
+  1e+00  2       34.65707  0.7050013  29.73213
+  1e+00  3       34.24467  0.7152903  29.46053
+  1e+00  4       33.86468  0.7202941  29.21025
+  1e+00  5       33.69649  0.7178549  29.13168
+  1e+00  6       33.66267  0.7139571  29.14174
+  1e+01  1       33.45751  0.7229232  29.04526
+  1e+01  2       31.12152  0.7282326  26.71747
+  1e+01  3       29.81660  0.7387301  25.12709
+  1e+01  4       29.25251  0.7536692  24.47846
+  1e+01  5       29.05237  0.7603414  24.18877
+  1e+01  6       29.21704  0.7561434  24.27790
+  1e+02  1       30.41701  0.7306747  25.35022
+  1e+02  2       33.41891  0.7006489  28.00263
+  1e+02  3       35.00559  0.6856153  29.43440
+  1e+02  4       35.93058  0.6812804  30.30483
+  1e+02  5       36.40875  0.6800142  30.81734
+  1e+02  6       36.61398  0.6815856  31.12266
+  1e+03  1       38.37440  0.6649887  32.66915
+  1e+03  2       39.10605  0.6646026  33.48628
+  1e+03  3       37.35864  0.6854311  31.91964
+  1e+03  4       35.09394  0.6951529  29.45974
+  1e+03  5       34.54099  0.6844530  28.87964
+  1e+03  6       36.71960  0.6968385  30.39085
+  1e+04  1       41.01972  0.6568932  34.92762
+  1e+04  2       34.70197  0.6851100  29.01608
+  1e+04  3       44.66433  0.7105190  35.50840
+  1e+04  4       55.19882  0.7152357  42.51253
+  1e+04  5       62.22965  0.6932210  48.18695
+  1e+04  6       64.53151  0.6920106  50.47946
+
+Tuning parameter 'scale' was held constant at a value of 0.001
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were degree = 5, scale = 0.001 and C = 10.
+> summary(svmFitTime)
+Length  Class   Mode 
+     1   ksvm     S4 
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 19.46187
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 45.94989
+> svmFitTime=svm(V8 ~ .,
++                data = train,kernek="sigmoid")
+> svmFitTime
+
+Call:
+svm(formula = V8 ~ ., data = train, kernek = "sigmoid")
+
+
+Parameters:
+   SVM-Type:  eps-regression 
+ SVM-Kernel:  radial 
+       cost:  1 
+      gamma:  0.1428571 
+    epsilon:  0.1 
+
+
+Number of Support Vectors:  23
+
+> summary(svmFitTime)
+
+Call:
+svm(formula = V8 ~ ., data = train, kernek = "sigmoid")
+
+
+Parameters:
+   SVM-Type:  eps-regression 
+ SVM-Kernel:  radial 
+       cost:  1 
+      gamma:  0.1428571 
+    epsilon:  0.1 
+
+
+Number of Support Vectors:  23
+
+
+
+
+
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 13.85779
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 42.10466
+> #---------------------------------------------------------------------------
+> # selected product = Top 5 th
+> #11740941
+> #11741274
+> #11629829
+> product <- top_products$item_sk[5]
+> product
+[1] 11629829
+> 
+> # Filter the data for selected product only
+> xy <- data %>% 
++   filter(item_sk == product, quantity != 603) %>% 
++   select(-item_sk)
+> 
+> # Check for any missing dates in the data
+> 
+> is_continuous <- all(diff(xy$Date) == 1)
+> 
+> # Remove the data as well
+> xy$date <- NULL
+> 
+> # Reshape the dataframe to have 7 independent and 1 dependent (8 in total cols)
+> 
+> total_rows = nrow(xy)
+> rows_to_reshape = total_rows - (total_rows %% 8)
+> reshaped_xy <- 
++   as.data.frame(matrix(xy[1:rows_to_reshape, 1], ncol = 8, byrow = TRUE))
+> 
+> 
+> trainIndex<-createDataPartition(reshaped_xy$V8, p=0.8, list=FALSE)
+> train<-reshaped_xy[trainIndex,]
+> test<-reshaped_xy[-trainIndex,]
+> 
+> 
+> # Set X and y
+> X <- train[,1:7]
+> y <- train[,8]
+> 
+> X_test <- test[,1:7]
+> y_test <- test[,8]
+> 
+> myCvControl <- trainControl(method = "repeatedCV",
++                             number=10,
++                             repeats = 5)
+Warning message:
+`repeats` has no meaning for this resampling method. 
+> 
+> 
+> # Support Vector Regression
+> # method = svmRadial
+> cat(product , "svmRadial")
+11629829 svmRadial> svmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "svmRadial",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl)
+> svmFitTime
+Support Vector Machines with Radial Basis Function Kernel 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 25, 24, 25, 24, 24, ... 
+Resampling results across tuning parameters:
+
+  C       RMSE      Rsquared   MAE     
+    0.25  48.82893  0.7129794  38.67265
+    0.50  48.75766  0.7402870  39.05445
+    1.00  49.78422  0.7329748  40.60900
+    2.00  52.34226  0.7338731  44.19451
+    4.00  53.97358  0.7348476  46.50983
+    8.00  53.97358  0.7348476  46.50983
+   16.00  53.97358  0.7348476  46.50983
+   32.00  53.97358  0.7348476  46.50983
+   64.00  53.97358  0.7348476  46.50983
+  128.00  53.97358  0.7348476  46.50983
+
+Tuning parameter 'sigma' was held constant at a value of 1.025851
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were sigma = 1.025851 and C = 0.5.
+> summary(svmFitTime)
+Length  Class   Mode 
+     1   ksvm     S4 
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 23.20038
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 145.2042
+> 
+> # method = svmLinear
+> cat(product , "svmLinear")
+11629829 svmLinear> svmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "svmLinear",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl)
+> svmFitTime
+Support Vector Machines with Linear Kernel 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 24, 24, 25, 24, 24, 25, ... 
+Resampling results:
+
+  RMSE     Rsquared   MAE     
+  54.3962  0.7154952  43.76852
+
+Tuning parameter 'C' was held constant at a value of 1
+> summary(svmFitTime)
+Length  Class   Mode 
+     1   ksvm     S4 
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 40.51981
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 66.67693
+> 
+> 
+> # method = svmPoly
+> cat(product , "svmPoly")
+11629829 svmPoly> svmFitTime <- train(V8 ~ .,
++                     data = train,
++                     method = "svmPoly",
++                     preProc = c("center", "scale"),
++                     tuneLength = 10,
++                     trControl = myCvControl,
++                     tuneGrid = expand.grid(
++                       C = c(1e-1, 1e0, 1e1, 1e2, 1e3, 1e4),
++                       degree = c(1, 2, 3, 4, 5, 6),
++                       scale = 0.001)
++ )
+> svmFitTime
+Support Vector Machines with Polynomial Kernel 
+
+27 samples
+ 7 predictor
+
+Pre-processing: centered (7), scaled (7) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
+Summary of sample sizes: 25, 24, 25, 24, 25, 24, ... 
+Resampling results across tuning parameters:
+
+  C      degree  RMSE      Rsquared   MAE     
+  1e-01  1       53.51092  0.6711496  40.43352
+  1e-01  2       53.30223  0.6710852  40.24886
+  1e-01  3       53.10234  0.6701733  40.06634
+  1e-01  4       52.88030  0.6702767  39.86685
+  1e-01  5       52.64639  0.6702039  39.67303
+  1e-01  6       52.42760  0.6696172  39.48958
+  1e+00  1       51.88695  0.6712816  38.88837
+  1e+00  2       51.04189  0.6765926  38.05875
+  1e+00  3       50.50220  0.6812487  37.55065
+  1e+00  4       50.30587  0.6805641  37.47978
+  1e+00  5       50.09255  0.6800060  37.42031
+  1e+00  6       49.83100  0.6812503  37.18393
+  1e+01  1       48.54773  0.6865618  35.89431
+  1e+01  2       47.73407  0.6873564  35.43876
+  1e+01  3       46.71474  0.6811025  34.75657
+  1e+01  4       46.64791  0.6766222  35.00931
+  1e+01  5       46.75303  0.6968584  35.27321
+  1e+01  6       47.02294  0.7044783  35.78149
+  1e+02  1       47.40532  0.7019156  36.59658
+  1e+02  2       47.90805  0.6795584  37.98176
+  1e+02  3       48.66916  0.6748717  39.02141
+  1e+02  4       49.23215  0.6606780  39.55231
+  1e+02  5       50.12300  0.6523057  40.33334
+  1e+02  6       50.92408  0.6497880  41.05963
+  1e+03  1       51.76276  0.6587156  41.55344
+  1e+03  2       54.82264  0.6531382  44.27845
+  1e+03  3       55.84916  0.6523686  44.88988
+  1e+03  4       56.09791  0.6626589  44.69503
+  1e+03  5       56.99596  0.6450441  45.48808
+  1e+03  6       56.38439  0.6377818  45.41998
+  1e+04  1       56.07393  0.6564929  45.19943
+  1e+04  2       58.79531  0.6417996  46.99251
+  1e+04  3       56.25816  0.6462018  45.44232
+  1e+04  4       59.89173  0.6276660  48.44658
+  1e+04  5       70.90026  0.5944395  55.64933
+  1e+04  6       74.57747  0.5924811  57.92365
+
+Tuning parameter 'scale' was held constant at a value of 0.001
+RMSE was used to select the optimal model using the smallest value.
+The final values used for the model were degree = 4, scale = 0.001 and C = 10.
+> summary(svmFitTime)
+Length  Class   Mode 
+     1   ksvm     S4 
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 39.54067
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 78.42443
+> 
+> # Kernel = “sigmoid”
+> cat(product , "sigmoid")
+11629829 sigmoid> 
+> svmFitTime=svm(V8 ~ .,
++                data = train,kernek="sigmoid")
+> svmFitTime
+
+Call:
+svm(formula = V8 ~ ., data = train, kernek = "sigmoid")
+
+
+Parameters:
+   SVM-Type:  eps-regression 
+ SVM-Kernel:  radial 
+       cost:  1 
+      gamma:  0.1428571 
+    epsilon:  0.1 
+
+
+Number of Support Vectors:  21
+
+> summary(svmFitTime)
+
+Call:
+svm(formula = V8 ~ ., data = train, kernek = "sigmoid")
+
+
+Parameters:
+   SVM-Type:  eps-regression 
+ SVM-Kernel:  radial 
+       cost:  1 
+      gamma:  0.1428571 
+    epsilon:  0.1 
+
+
+Number of Support Vectors:  21
+
+
+
+
+
+> y_hat = predict(svmFitTime, newdata = X)
+> mean(100*abs(y_hat-y)/y)
+[1] 25.2467
+> y_hat2 = predict(svmFitTime, newdata = X_test)
+> mean(100*abs(y_hat2-y_test)/y_test)
+[1] 164.3208

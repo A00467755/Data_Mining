@@ -1,0 +1,164 @@
+Let us assume that you have a daily electricity consumption as shown
+in a Sample time series (your values will be different):
+1255
+1456
+1256
+1311
+1578
+1339
+1305
+1494
+1465
+1650
+1362
+1261
+1159
+1364
+...
+...
+
+If you use the last seven days to predict the eighth dataset,
+corresponding data file:
+1255.00,1456.00,1256.00,1311.00,1578.00,1339.00,1305.00,1494.00
+1456.00,1256.00,1311.00,1578.00,1339.00,1305.00,1494.00,1465.00
+1256.00,1311.00,1578.00,1339.00,1305.00,1494.00,1465.00,1650.00
+1311.00,1578.00,1339.00,1305.00,1494.00,1465.00,1650.00,1362.00
+1578.00,1339.00,1305.00,1494.00,1465.00,1650.00,1362.00,1261.00
+1339.00,1305.00,1494.00,1465.00,1650.00,1362.00,1261.00,1159.00
+1305.00,1494.00,1465.00,1650.00,1362.00,1261.00,1159.00,1364.00
+...
+...
+</pre>
+
+Note: You have to repeat this for daily, hourly, and fifteen-minute
+consumption.
+
+You should try different history for independent variables.
+
+For example, to predict hourly consumption, you can use:
+- previous hour
+- same hour of the previous day
+- same hour of the same day of the previous week
+
+Split the dataset into train and test datasets to see if
+the results are comparable.
+
+Use ten-fold cross validation for the above techniques
+
+Run multilayer perceptron, linear regression, support vector machine, Holt-Winters,
+and ARIMA(p,0,q) on the dataset file for the entire dataset.
+
+Your report should compare error statistics for
+all the runs.
+
+#Detailed code segments discussed in class
+
+java HistoryTimeSeries < timeSeries.txt > historicalTimeSeries.txt
+head timeSeries.txt 
+27
+34
+6
+36
+45
+36
+24
+32
+20
+10
+head historicalTimeSeries.txt 
+27.0 34.0 6.0 36.0 45.0 36.0 24.0 32.0 
+34.0 6.0 36.0 45.0 36.0 24.0 32.0 20.0 
+6.0 36.0 45.0 36.0 24.0 32.0 20.0 10.0 
+36.0 45.0 36.0 24.0 32.0 20.0 10.0 30.0 
+45.0 36.0 24.0 32.0 20.0 10.0 30.0 23.0 
+36.0 24.0 32.0 20.0 10.0 30.0 23.0 43.0 
+24.0 32.0 20.0 10.0 30.0 23.0 43.0 32.0 
+32.0 20.0 10.0 30.0 23.0 43.0 32.0 21.0 
+20.0 10.0 30.0 23.0 43.0 32.0 21.0 19.0 
+10.0 30.0 23.0 43.0 32.0 21.0 19.0 15.0 
+
+Now Ready to do R
+
+# If you are on linux you can uncomment the following lines to run caret on multiple cores
+# library(doMC)
+# registerDoMC(4)
+library(caret)
+
+xy=read.table("historicalTimeSeries.txt",sep=' ',header=F)
+y=xy[,8]
+head(y)
+x=xy[,1:7]
+
+# Using pre-sliced data
+myCvControl <- trainControl(method = "repeatedCV",
+                            number=10,
+                            repeats = 5)
+
+# Linear regression
+glmFitTime <- train(V8 ~ .,
+                    data = xy,
+                    method = "glm",
+                    preProc = c("center", "scale"),
+                    tuneLength = 10,
+                    trControl = myCvControl)
+glmFitTime
+summary(glmFitTime)
+y_hat = predict(glmFitTime, newdata = x)
+mean(100*abs(y_hat-y)/y)
+# Your error with linear regression
+
+# Support Vector Regression
+svmFitTime <- train(V8 ~ .,
+                    data = xy,
+                    method = "svmRadial",
+                    preProc = c("center", "scale"),
+                    tuneLength = 10,
+                    trControl = myCvControl)
+svmFitTime
+summary(svmFitTime)
+y_hat = predict(svmFitTime, newdata = x)
+mean(100*abs(y_hat-y)/y)
+# Your error with support vector regression
+
+# Neural Network
+nnFitTime <- train(V8 ~ .,
+                   data = xy,
+                   method = "avNNet",
+                   preProc = c("center", "scale"),
+                   trControl = myCvControl,
+                   tuneLength = 10,
+                   linout = T,
+                   trace = F,
+                   MaxNWts = 10 * (ncol(xy) + 1) + 10 + 1,
+                   maxit = 500)
+nnFitTime
+summary(nnFitTime)
+y_hat = predict(nnFitTime, newdata = x)
+mean(100*abs(y_hat-y)/y)
+# Your error with neural networks
+
+# You can experiment with other methods, here is where you can find the methods caret supports:
+# https://topepo.github.io/caret/available-models.html
+
+# Compare models
+resamps <- resamples(list(lm = glmFitTime,
+                          svn = svmFitTime,
+                          nn = nnFitTime))
+summary(resamps)
+
+
+# Now working with the time-series modeling
+
+t=read.table("timeSeries.txt",header=F)
+head(t)
+tSeries = ts(t,start=1,freq=7)
+head(tSeries)
+
+library(forecast)
+hw = ets(tSeries,model="MAM")
+mean(100*abs(fitted(hw) - tSeries)/tSeries)
+# Your Holt-Winters error
+
+ar <- Arima(tSeries,order=c(7,0,7))
+mean(100*abs(fitted(ar) - tSeries)/tSeries)
+# Your Arima error

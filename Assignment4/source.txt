@@ -1,0 +1,3 @@
+Personal consumption expenditures (PCE), Source: https://apps.bea.gov
+Federal Funds Effective Rate, Source: https://fred.stlouisfed.org/series/FEDFUNDS
+Dow Jones Index, Source: https://finance.yahoo.com/quote/%5EDJI

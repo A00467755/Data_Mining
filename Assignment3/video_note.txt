@@ -1,0 +1,15 @@
+
+assumptions
+One session includes all milstones of the user in the same day
+Sequences of milestones do not matter
+
+
+parameter?
+support
+
+top 20?
+
+
+data summary
+top milestone chart
+print top 15 rules, sort by lift (inspect(rules)) 43:29
